@@ -1,0 +1,75 @@
+diff --git a/gui/emulator.c b/gui/emulator.c
+index 2b9af7a..6b574f9 100644
+--- a/gui/emulator.c
++++ b/gui/emulator.c
+@@ -49,8 +49,8 @@
+    but definitely is necessary with some.) */
+ void tilem_calc_emulator_lock(TilemCalcEmulator *emu)
+ {
+-	g_atomic_int_inc(&emu->calc_lock_waiting);
+ 	g_mutex_lock(emu->calc_mutex);
++	g_atomic_int_inc(&emu->calc_lock_waiting);
+ }
+ 
+ /* Unlock emulator and (if no other threads are waiting to lock it)
+@@ -561,7 +561,7 @@ gboolean tilem_calc_emulator_save_state(TilemCalcEmulator *emu, GError **err)
+ 
+ 	/* Write state */
+ 
+-	tilem_calc_emulator_lock(emu);
++	//tilem_calc_emulator_lock(emu);
+ 
+ 	if (romfile && tilem_calc_save_state(emu->calc, romfile, NULL))
+ 		errnum = errno;
+diff --git a/gui/macro.c b/gui/macro.c
+index 1bf4a48..d81ca44 100644
+--- a/gui/macro.c
++++ b/gui/macro.c
+@@ -87,7 +87,7 @@ void tilem_macro_add_action(TilemMacro* macro, int type, char * value) {
+ 	macro->actions = tilem_macro_actions_new(macro, n + 1);
+ 
+ 	/* Then we need to save the action */	
+-	macro->actions[n] =  (TilemMacroAtom*) g_new(char, strlen(value)); 
++	macro->actions[n] =  g_new(TilemMacroAtom, 1); 
+ 	macro->actions[n]->value = g_strdup(value);
+ 	macro->actions[n]->type = type;
+ 	macro->n++;
+@@ -132,7 +132,7 @@ void tilem_macro_write_file(TilemCalcEmulator *emu) {
+ 				printf("type : %d    value : %s\n", emu->macro->actions[i]->type, emu->macro->actions[i]->value);
+ 				/* Test if it's a key press or a file loading action */
+ 				if(emu->macro->actions[i]->type == 1) {
+-					char * lengthchar = g_new0(char, 4);
++					char * lengthchar = g_new0(char, 5);
+ 					int length = strlen(emu->macro->actions[i]->value);
+ 					fwrite("file=", 1, 5, fp);
+ 					sprintf(lengthchar, "%04zd", strlen(emu->macro->actions[i]->value));
+@@ -192,9 +192,27 @@ static gboolean tilem_macro_play_main(TilemCalcEmulator *emu, G_GNUC_UNUSED gpoi
+ }
+ 
+ 
+-static void tilem_macro_play_finished(G_GNUC_UNUSED TilemCalcEmulator *emu, G_GNUC_UNUSED gpointer data,
++static void tilem_macro_play_finished(TilemCalcEmulator *emu, G_GNUC_UNUSED gpointer data,
+                                G_GNUC_UNUSED gboolean cancelled) {
+-
++	tilem_em_lock(emu);
++	tilem_z80_run_time(emu->calc, 1000000, NULL);
++	TilemLCDBuffer *buffer = emu->lcd_buffer;
++	printf("P1\n");
++	//printf("%d %d\n", buffer->width, buffer->height);
++	printf("? ?\n");
++	for (int r = 0; r < buffer->height; ++r) {
++		for (int c = 0; c < buffer->width; ++c) {
++			//printf("%d ", !!buffer->data[buffer->width * r + c]);
++			printf("%d", !!buffer->data[buffer->width * r + c]);
++		}
++		//printf("\n");
++	}
++	printf("\n");
++	if (access("ictf.sav", F_OK) == -1) {
++		emu->state_file_name = "ictf.sav";
++		tilem_calc_emulator_save_state(emu, NULL);
++	}
++	exit(EXIT_SUCCESS);
+ }
+ 
+ /* Play the macro */

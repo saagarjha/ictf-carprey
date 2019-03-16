@@ -1,0 +1,3 @@
+[submodule "goodies/spasm-ng"]
+	path = goodies/spasm-ng
+	url = https://github.com/alberthdev/spasm-ng.git
